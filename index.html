@@ -541,6 +541,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
       <button class="mdbtn" data-mode="wave">WAVE</button>
       <button class="mdbtn" data-mode="radial">CIRC</button>
       <button class="mdbtn" data-mode="wmp">WMP</button>
+      <button class="mdbtn" data-mode="winamp">WINAMP</button>
     </div>
 
     <div class="bar-div"></div>
@@ -1274,12 +1275,9 @@ let wmpBuf  = null;
 let wmpBuf2 = null; // トランジション用セカンドバッファ
 
 const WMP_PRESETS = [
-  'rings',      // 周波数リング (オリジナル)
-  'tunnel',     // サイケデリックトンネル
-  'plasma',     // プラズマフィールド
-  'starfield',  // スターフィールド + 波形
-  'helix',      // DNAヘリックス
-  'grid',       // グリッドワープ
+  'rings','tunnel','plasma','starfield','helix','grid',
+  'barswave','ambience','spikes','plenoptic',
+  'musicalcolors','particleswarm','lissajous','ocean','fractaltree'
 ];
 
 let wmpPreset     = 0;
@@ -1498,8 +1496,238 @@ function wmpGrid(bc, bW, bH, dpr, d, {bass,mid,energy}) {
   }
 }
 
+/* ---- PRESET 6: BARS WAVE (音量連動の3D縦棒) ---- */
+function wmpBarsWave(bc,bW,bH,dpr,d,{bass,mid,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.2+energy*.08})`; bc.fillRect(0,0,bW,bH);
+  const t=moodPhase;
+  const n=Math.min(d.length,80), gap=2, bw=(bW-gap*(n+1))/n;
+  for(let i=0;i<n;i++){
+    const v=d[i]/255, x=gap+i*(bw+gap);
+    const wavey=Math.sin(i*.3+t*2)*bH*.08*mid;
+    const bh=v*bH*.85;
+    const g=bc.createLinearGradient(0,bH-bh+wavey,0,bH);
+    g.addColorStop(0,`hsla(${(moodH+i*2)%360},${moodS}%,${moodL+20}%,0.9)`);
+    g.addColorStop(1,`hsla(${moodH},${moodS*.6}%,${moodL*.4}%,0.4)`);
+    bc.fillStyle=g;
+    bc.beginPath();
+    bc.roundRect?bc.roundRect(x,bH-bh+wavey,bw,bh,2):bc.rect(x,bH-bh+wavey,bw,bh);
+    bc.fill();
+  }
+}
+
+/* ---- PRESET 7: AMBIENCE (Milkdrop風 流体) ---- */
+function wmpAmbience(bc,bW,bH,dpr,d,{bass,mid,treble,energy}){
+  const zoom=1.012+bass*.02, spin=(mid-.5)*.006;
+  const cx=bW/2, cy=bH/2;
+  bc.save(); bc.globalAlpha=.82-energy*.06;
+  bc.translate(cx+Math.sin(moodPhase*2.1)*bass*4*dpr,cy+Math.cos(moodPhase*1.7)*mid*3*dpr);
+  bc.rotate(spin); bc.scale(zoom,zoom); bc.drawImage(bc.canvas,-cx,-cy); bc.restore();
+  bc.fillStyle=`rgba(0,0,0,${.03+energy*.03})`; bc.fillRect(0,0,bW,bH);
+  // 色面を重ねる
+  const slices=6;
+  for(let s=0;s<slices;s++){
+    const fi=Math.floor(s/slices*d.length*.6);
+    const v=d[fi]/255;
+    const angle=(s/slices)*Math.PI*2+moodPhase*.5;
+    const r=(v*.4+.1)*Math.min(bW,bH)*.6;
+    const grd=bc.createRadialGradient(cx,cy,0,cx+Math.cos(angle)*r*.5,cy+Math.sin(angle)*r*.5,r);
+    grd.addColorStop(0,`hsla(${(moodH+s*40)%360},${moodS}%,${moodL+20}%,${v*.25})`);
+    grd.addColorStop(1,'rgba(0,0,0,0)');
+    bc.fillStyle=grd; bc.fillRect(0,0,bW,bH);
+  }
+}
+
+/* ---- PRESET 8: SPIKES (放射スパイク) ---- */
+function wmpSpikes(bc,bW,bH,dpr,d,{bass,mid,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.25+energy*.08})`; bc.fillRect(0,0,bW,bH);
+  const cx=bW/2, cy=bH/2, t=moodPhase;
+  const n=Math.min(d.length,128);
+  const r0=Math.min(bW,bH)*.08;
+  for(let i=0;i<n;i++){
+    const v=d[i]/255;
+    const angle=(i/n)*Math.PI*2+t*.3;
+    const len=(r0+v*Math.min(bW,bH)*.38)*(1+bass*.15);
+    const x1=cx+Math.cos(angle)*r0, y1=cy+Math.sin(angle)*r0;
+    const x2=cx+Math.cos(angle)*len, y2=cy+Math.sin(angle)*len;
+    const hue=(moodH+i*2.8+t*20)%360;
+    bc.strokeStyle=`hsla(${hue},${moodS}%,${moodL+v*25}%,${.6+v*.4})`;
+    bc.lineWidth=(1+v*2)*dpr; bc.beginPath(); bc.moveTo(x1,y1); bc.lineTo(x2,y2); bc.stroke();
+  }
+  // inner glow
+  const ig=bc.createRadialGradient(cx,cy,0,cx,cy,r0*(1.5+bass));
+  ig.addColorStop(0,`hsla(${moodH},95%,90%,${.5+bass*.4})`);
+  ig.addColorStop(1,'rgba(0,0,0,0)');
+  bc.fillStyle=ig; bc.beginPath(); bc.arc(cx,cy,r0*(1.5+bass),0,Math.PI*2); bc.fill();
+}
+
+/* ---- PRESET 9: PLENOPTIC (万華鏡) ---- */
+function wmpPlenoptic(bc,bW,bH,dpr,d,{bass,mid,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.2+energy*.05})`; bc.fillRect(0,0,bW,bH);
+  const cx=bW/2, cy=bH/2, t=moodPhase;
+  const segments=8;
+  for(let seg=0;seg<segments;seg++){
+    bc.save();
+    bc.translate(cx,cy);
+    bc.rotate((seg/segments)*Math.PI*2);
+    const n=Math.min(d.length,64);
+    for(let i=0;i<n;i++){
+      const v=d[i]/255;
+      const angle=(i/n)*Math.PI/segments*2;
+      const r=v*Math.min(bW,bH)*.42;
+      const x=Math.cos(angle+t*.4)*r, y=Math.sin(angle+t*.4)*r;
+      bc.beginPath(); bc.arc(x,y,(1+v*3)*dpr,0,Math.PI*2);
+      bc.fillStyle=`hsla(${(moodH+seg*20+i*3)%360},${moodS}%,${moodL+v*20}%,${.7+v*.3})`;
+      bc.fill();
+    }
+    bc.restore();
+    // mirror
+    bc.save(); bc.translate(cx,cy); bc.rotate((seg/segments)*Math.PI*2); bc.scale(1,-1);
+    for(let i=0;i<Math.min(d.length,64);i++){
+      const v=d[i]/255, angle=(i/Math.min(d.length,64))*Math.PI/segments*2;
+      const r=v*Math.min(bW,bH)*.42;
+      bc.beginPath(); bc.arc(Math.cos(angle+t*.4)*r,Math.sin(angle+t*.4)*r,(1+v*2)*dpr,0,Math.PI*2);
+      bc.fillStyle=`hsla(${(moodH+seg*20+i*3+30)%360},${moodS}%,${moodL+v*15}%,${.5+v*.3})`;
+      bc.fill();
+    }
+    bc.restore();
+  }
+}
+
+/* ---- PRESET 10: MUSICAL COLORS (色面フラッシュ) ---- */
+function wmpMusicalColors(bc,bW,bH,dpr,d,{bass,mid,treble,energy}){
+  const t=moodPhase;
+  // 背景グラデーション
+  const bg=bc.createLinearGradient(0,0,bW,bH);
+  bg.addColorStop(0,`hsla(${(moodH+t*10)%360},${moodS*.6}%,8%,.95)`);
+  bg.addColorStop(1,`hsla(${(moodH+180+t*10)%360},${moodS*.6}%,5%,.95)`);
+  bc.fillStyle=bg; bc.fillRect(0,0,bW,bH);
+  // 音域ごとに色面を表示
+  const bands2=[
+    {v:bass,   h:moodH,       label:'BASS'},
+    {v:mid,    h:(moodH+80)%360, label:'MID'},
+    {v:treble, h:(moodH+160)%360,label:'TREBLE'},
+  ];
+  bands2.forEach(({v,h},i)=>{
+    if(v<.05) return;
+    const x=bW*(i/3), w=bW/3;
+    const g2=bc.createLinearGradient(x,0,x+w,0);
+    g2.addColorStop(0,'rgba(0,0,0,0)');
+    g2.addColorStop(.3,`hsla(${h},${moodS}%,${moodL+v*20}%,${v*.7})`);
+    g2.addColorStop(.7,`hsla(${h},${moodS}%,${moodL+v*20}%,${v*.7})`);
+    g2.addColorStop(1,'rgba(0,0,0,0)');
+    bc.fillStyle=g2; bc.fillRect(x,0,w,bH);
+  });
+  // wave overlay
+  analyser.getByteTimeDomainData(waveArray);
+  bc.strokeStyle=`hsla(${moodH},95%,80%,${.4+energy*.4})`; bc.lineWidth=2*dpr; bc.lineJoin='round';
+  bc.beginPath();
+  for(let i=0;i<waveArray.length;i+=2){
+    const x=(i/waveArray.length)*bW, y=(waveArray[i]/255)*bH;
+    i===0?bc.moveTo(x,y):bc.lineTo(x,y);
+  }
+  bc.stroke();
+}
+
+/* ---- PRESET 11: PARTICLE SWARM (群体パーティクル) ---- */
+let swarmParts=[];
+function wmpParticleSwarm(bc,bW,bH,dpr,d,{bass,mid,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.18+energy*.06})`; bc.fillRect(0,0,bW,bH);
+  const cx=bW/2, cy=bH/2;
+  // 生成
+  if(swarmParts.length<500 && bass>.15){
+    const n=Math.floor(bass*15);
+    for(let k=0;k<n;k++){
+      const angle=Math.random()*Math.PI*2;
+      const spd=.5+Math.random()*3*bass;
+      swarmParts.push({x:cx+(Math.random()-.5)*bW*.3,y:cy+(Math.random()-.5)*bH*.3,
+        vx:Math.cos(angle)*spd*dpr,vy:Math.sin(angle)*spd*dpr,
+        life:1,size:(1+Math.random()*2)*dpr,hue:moodH+(Math.random()-.5)*80});
+    }
+  }
+  swarmParts=swarmParts.filter(p=>p.life>.02);
+  // 群れの引力
+  swarmParts.forEach(p=>{
+    const dx=cx-p.x, dy=cy-p.y, dist=Math.sqrt(dx*dx+dy*dy)||1;
+    p.vx+=dx/dist*.15*mid; p.vy+=dy/dist*.15*mid;
+    p.vx*=.98; p.vy*=.98;
+    p.x+=p.vx; p.y+=p.vy; p.life*=.97;
+    bc.beginPath(); bc.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+    bc.fillStyle=`hsla(${p.hue},${moodS}%,${moodL+15}%,${p.life*.8})`;
+    bc.fill();
+  });
+}
+
+/* ---- PRESET 12: LISSAJOUS (リサージュ図形) ---- */
+function wmpLissajous(bc,bW,bH,dpr,d,{bass,mid,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.15+energy*.06})`; bc.fillRect(0,0,bW,bH);
+  analyser.getByteTimeDomainData(waveArray);
+  const cx=bW/2, cy=bH/2, t=moodPhase;
+  const rx=bW*.38*(1+bass*.2), ry=bH*.38*(1+mid*.2);
+  const freqA=2+Math.floor(bass*3), freqB=3+Math.floor(mid*3);
+  bc.lineWidth=1.5*dpr; bc.lineJoin='round';
+  // 複数レイヤー
+  for(let layer=0;layer<3;layer++){
+    const alpha=.3+layer*.25;
+    bc.beginPath();
+    for(let i=0;i<=360;i++){
+      const angle=i/360*Math.PI*2;
+      const wv=waveArray[Math.floor(i/360*waveArray.length)]/255-.5;
+      const x=cx+Math.sin(freqA*angle+t*(1+layer*.3)+wv*.5)*rx;
+      const y=cy+Math.sin(freqB*angle+wv*.5)*ry;
+      i===0?bc.moveTo(x,y):bc.lineTo(x,y);
+    }
+    bc.strokeStyle=`hsla(${(moodH+layer*40)%360},${moodS}%,${moodL+10}%,${alpha})`;
+    bc.stroke();
+  }
+}
+
+/* ---- PRESET 13: OCEAN WAVES (波面) ---- */
+function wmpOcean(bc,bW,bH,dpr,d,{bass,mid,treble,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.2+energy*.06})`; bc.fillRect(0,0,bW,bH);
+  const t=moodPhase;
+  const layers=6;
+  for(let l=0;l<layers;l++){
+    const yBase=bH*(l+1)/(layers+1);
+    const amp=bH*.04*(1+bass*(layers-l)/layers);
+    const freq=1.5+l*.5+mid;
+    bc.beginPath();
+    for(let x=0;x<=bW;x+=3){
+      const fi=Math.floor(x/bW*d.length*.7);
+      const v=d[fi]/255;
+      const y=yBase+Math.sin(x/bW*Math.PI*freq*2+t*(1+l*.3))*amp*(1+v*.5)
+               +Math.sin(x/bW*Math.PI*freq*3.7+t*1.5)*amp*.3;
+      x===0?bc.moveTo(x,y):bc.lineTo(x,y);
+    }
+    bc.lineTo(bW,bH); bc.lineTo(0,bH); bc.closePath();
+    const hue=(moodH+l*15)%360;
+    bc.fillStyle=`hsla(${hue},${moodS}%,${moodL*(l+1)/layers}%,${.12+energy*.08})`;
+    bc.fill();
+    bc.strokeStyle=`hsla(${hue},${moodS}%,${moodL+20}%,${.3+energy*.2})`;
+    bc.lineWidth=dpr; bc.stroke();
+  }
+}
+
+/* ---- PRESET 14: FRACTAL TREE (フラクタルツリー) ---- */
+function drawBranch(bc,x,y,angle,len,depth,dpr,hue,sat,lit){
+  if(depth===0||len<1) return;
+  const x2=x+Math.cos(angle)*len, y2=y+Math.sin(angle)*len;
+  bc.strokeStyle=`hsla(${hue%360},${sat}%,${lit+depth*5}%,${.4+depth*.08})`;
+  bc.lineWidth=(depth*.5)*dpr; bc.beginPath(); bc.moveTo(x,y); bc.lineTo(x2,y2); bc.stroke();
+  drawBranch(bc,x2,y2,angle-.35+Math.sin(moodPhase+depth)*.15,len*.67,depth-1,dpr,(hue+15)%360,sat,lit);
+  drawBranch(bc,x2,y2,angle+.35+Math.cos(moodPhase+depth)*.15,len*.67,depth-1,dpr,(hue-15+360)%360,sat,lit);
+}
+function wmpFractalTree(bc,bW,bH,dpr,d,{bass,mid,energy}){
+  bc.fillStyle=`rgba(0,0,0,${.3+energy*.08})`; bc.fillRect(0,0,bW,bH);
+  const len=bH*(0.18+bass*.12);
+  drawBranch(bc,bW/2,bH,-Math.PI/2,len,7,dpr,moodH,moodS,moodL*.6);
+}
+
 /* ---- プリセット名表示 ---- */
-const PRESET_NAMES = ['RINGS','TUNNEL','PLASMA','STARFIELD','HELIX','GRID WARP'];
+const PRESET_NAMES = [
+  'RINGS','TUNNEL','PLASMA','STARFIELD','HELIX','GRID WARP',
+  'BARS WAVE','AMBIENCE','SPIKES','PLENOPTIC',
+  'MUSICAL COLORS','PARTICLE SWARM','LISSAJOUS','OCEAN WAVES','FRACTAL TREE'
+];
 let wmpNameAlpha = 0;
 
 /* ---- WMP メイン描画 ---- */
@@ -1525,7 +1753,9 @@ function drawWMP(d) {
   const bc=wmpBuf.getContext('2d');
   const drawPreset=(buf,idx)=>{
     const c2=buf.getContext('2d');
-    const fn=[wmpRings,wmpTunnel,wmpPlasma,wmpStarfield,wmpHelix,wmpGrid][idx];
+    const fn=[wmpRings,wmpTunnel,wmpPlasma,wmpStarfield,wmpHelix,wmpGrid,
+              wmpBarsWave,wmpAmbience,wmpSpikes,wmpPlenoptic,
+              wmpMusicalColors,wmpParticleSwarm,wmpLissajous,wmpOcean,wmpFractalTree][idx];
     fn(c2,bW,bH,dpr,d,bands);
   };
 
@@ -1639,6 +1869,187 @@ function seek(e) {
   progressCur.textContent = fmtTime(seekTo);
 }
 
+/* ======== WINAMP CLASSIC VISUALIZER ========
+  Winampの伝統的なビジュアライザを2モードで再現:
+  1. SPECTRUM ANALYZER  — 細いバー＋ピーク＋スキャンライン (Classic AVS)
+  2. OSCILLOSCOPE       — 波形 (Winamp内蔵オシロスコープ)
+  自動で交互に切り替わる
+*/
+let winampMode = 0;      // 0=spectrum 1=scope
+let winampTimer = 0;
+const WINAMP_SWITCH = 60 * 12; // 12秒ごと切替
+
+// Winamp定番の黒背景＋緑のスキャンラインテクスチャ
+let winampBg = null;
+function ensureWinampBg(bW, bH) {
+  if (winampBg && winampBg.width === bW) return;
+  winampBg = Object.assign(document.createElement('canvas'), {width:bW, height:bH});
+  const bc = winampBg.getContext('2d');
+  // 黒地
+  bc.fillStyle = '#000'; bc.fillRect(0, 0, bW, bH);
+  // Winamp特有の細かいドットグリッド
+  bc.fillStyle = 'rgba(0,28,0,0.9)';
+  for (let y = 0; y < bH; y += 2) bc.fillRect(0, y, bW, 1);
+}
+
+// Winamp スペクトラムアナライザーの色 (緑〜黄〜赤のグラデーション)
+function winampBarColor(v) {
+  // Winampの伝統的なカラーマップ: 緑→黄→赤
+  if (v > 0.85) return '#ff2020';
+  if (v > 0.70) return '#ff6020';
+  if (v > 0.55) return '#ffaa00';
+  if (v > 0.40) return '#dddd00';
+  if (v > 0.25) return '#80dd00';
+  return '#00cc00';
+}
+
+// Winampピーク保持
+let waPeak = [], waPeakTimer = [];
+const WA_PEAK_HOLD = 40;
+const WA_PEAK_FALL = 0.008;
+
+function drawWinampSpectrum(ctx, W, H, d, dpr) {
+  // 背景: Winampの濃い緑がかった黒
+  ctx.fillStyle = '#000005';
+  ctx.fillRect(0, 0, W, H);
+
+  // スキャンライン (Winamp特有の横縞)
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  for (let y = 0; y < H; y += 2) ctx.fillRect(0, y, W, 1);
+
+  const n = Math.min(d.length, 75);
+  const gap = 1;
+  const bw = Math.floor((W - gap * (n + 1)) / n);
+
+  if (waPeak.length !== n) {
+    waPeak = new Array(n).fill(0);
+    waPeakTimer = new Array(n).fill(0);
+  }
+
+  for (let i = 0; i < n; i++) {
+    const v = d[i] / 255;
+    const bh = Math.floor(v * (H - 4));
+    const x = gap + i * (bw + gap);
+    const y = H - bh - 2;
+
+    // ピーク更新
+    if (v > waPeak[i]) { waPeak[i] = v; waPeakTimer[i] = WA_PEAK_HOLD; }
+    else if (waPeakTimer[i] > 0) waPeakTimer[i]--;
+    else waPeak[i] = Math.max(0, waPeak[i] - WA_PEAK_FALL);
+
+    // バーを1pxずつ積み上げて色を変える (Winampの特徴)
+    for (let py = y; py < H - 2; py += 2) {
+      const segV = (H - 2 - py) / (H - 2);
+      ctx.fillStyle = winampBarColor(segV);
+      ctx.fillRect(x, py, bw, 1);
+    }
+
+    // ピークマーク (白い1pxライン)
+    if (waPeak[i] > 0.02) {
+      const py = H - Math.floor(waPeak[i] * (H - 4)) - 2;
+      ctx.fillStyle = waPeakTimer[i] > 0 ? '#ffffff' : 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x, py, bw, 1);
+    }
+  }
+
+  // Winampロゴ的なテキスト (右下に薄く)
+  ctx.font = `bold ${9*dpr}px 'Orbitron', monospace`;
+  ctx.fillStyle = 'rgba(0,180,0,0.18)';
+  ctx.textAlign = 'right';
+  ctx.fillText('SPECTRUM ANALYZER', (W - 8) * dpr, (H - 6) * dpr);
+  ctx.textAlign = 'left';
+}
+
+function drawWinampScope(ctx, W, H, dpr) {
+  // 背景
+  ctx.fillStyle = '#000005'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  for (let y = 0; y < H; y += 2) ctx.fillRect(0, y, W, 1);
+
+  analyser.getByteTimeDomainData(waveArray);
+
+  // グリッド (Winamp風の薄いグリッド)
+  ctx.strokeStyle = 'rgba(0,80,0,0.4)'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += W/8) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += H/4) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // 中央線
+  ctx.strokeStyle = 'rgba(0,120,0,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+  // 波形 (Winamp伝統の緑)
+  ctx.lineWidth = 1; ctx.lineJoin = 'round';
+
+  // 2本の波形でステレオ感を演出
+  for (let ch = 0; ch < 2; ch++) {
+    const offset = ch * Math.floor(waveArray.length / 2);
+    const len = Math.floor(waveArray.length / 2);
+    const yOffset = ch === 0 ? -H * 0.08 : H * 0.08;
+
+    ctx.strokeStyle = ch === 0
+      ? `rgba(0,220,0,0.9)`
+      : `rgba(0,180,0,0.6)`;
+
+    ctx.beginPath();
+    for (let i = 0; i < len; i++) {
+      const x = (i / len) * W;
+      const y = H/2 + yOffset + (waveArray[offset + i] / 255 - 0.5) * H * 0.8;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // ラベル
+  ctx.font = `bold ${9*dpr}px 'Orbitron', monospace`;
+  ctx.fillStyle = 'rgba(0,180,0,0.18)';
+  ctx.textAlign = 'right';
+  ctx.fillText('OSCILLOSCOPE', (W - 8) * dpr, (H - 6) * dpr);
+  ctx.textAlign = 'left';
+}
+
+// Winampモード名オーバーレイ
+let winampNameAlpha = 0;
+const WINAMP_MODE_NAMES = ['SPECTRUM ANALYZER', 'OSCILLOSCOPE'];
+
+function drawWinamp(d) {
+  winampTimer++;
+  if (winampTimer >= WINAMP_SWITCH) {
+    winampTimer = 0;
+    winampMode = 1 - winampMode;
+    winampNameAlpha = 1.5;
+  }
+
+  if (winampMode === 0) {
+    drawWinampSpectrum(ctx, W, H, d, devicePixelRatio);
+  } else {
+    drawWinampScope(ctx, W, H, devicePixelRatio);
+  }
+
+  // CRTっぽいVignetteを追加
+  const vg = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.min(W,H)*.8);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+  // モード名表示
+  if (winampNameAlpha > 0) {
+    winampNameAlpha -= 0.02;
+    const alpha = Math.min(1, winampNameAlpha);
+    const dpr = devicePixelRatio;
+    ctx.font = `bold ${11*dpr}px 'Orbitron', monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = `rgba(0,0,0,${alpha * .6})`;
+    ctx.fillRect(W/2*dpr - 120*dpr, H/2*dpr - 14*dpr, 240*dpr, 28*dpr);
+    ctx.fillStyle = `rgba(0,220,0,${alpha})`;
+    ctx.fillText(WINAMP_MODE_NAMES[winampMode], W/2*dpr, H/2*dpr + 5*dpr);
+    ctx.textAlign = 'left';
+  }
+}
+
 /* ---- MAIN LOOP ---- */
 function loop() {
   animId = requestAnimationFrame(loop);
@@ -1652,6 +2063,7 @@ function loop() {
   else if(mode==='wave')drawWave(dataArray);
   else if(mode==='radial')drawRadial(dataArray);
   else if(mode==='wmp')drawWMP(dataArray);
+  else if(mode==='winamp')drawWinamp(dataArray);
   updateVU(dataArray);
   animateSig(avg);
   updateProgress();
