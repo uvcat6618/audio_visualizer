@@ -665,8 +665,9 @@ function setPlaybackBtns(state) {
   playBtn.disabled  = (state === 'playing');
   pauseBtn.disabled = (state !== 'playing');
   stopBtn.disabled  = (state === 'idle');
-  prevBtn.disabled  = (state === 'idle' || playlist.length < 2);
-  nextBtn.disabled  = (state === 'idle' || playlist.length < 2);
+  // prev/next: プレイリストに2曲以上あれば再生中も操作可能
+  prevBtn.disabled  = (playlist.length < 2);
+  nextBtn.disabled  = (playlist.length < 2);
   playBtn.classList.toggle('lit', state === 'paused');
   pauseBtn.classList.remove('lit','pause-lit');
   if (state === 'playing') pauseBtn.classList.add('pause-lit');
@@ -708,29 +709,47 @@ function hideJacket() {
   jacketImg.src = '';
 }
 
-function readJacket(file) {
-  if (typeof jsmediatags === 'undefined') { showJacket(null); return; }
+function readJacket(item) {
+  const file = item && item.file;
+
+  // itemにキャッシュ済みタグがあれば再利用
+  if (item && item.tags) {
+    applyTags(item.tags);
+    return;
+  }
+
+  if (!file || typeof jsmediatags === 'undefined') {
+    showJacket(null);
+    lcdArtist.textContent = '';
+    return;
+  }
+
   jsmediatags.read(file, {
     onSuccess: (tag) => {
       const tags = tag.tags || {};
-      // アーティスト名
-      const artist = tags.artist || tags.TPE1 || tags.TPE2 || '';
-      lcdArtist.textContent = artist.toUpperCase();
-      // 曲名（タグ優先、なければファイル名）
-      const title = tags.title || tags.TIT2 || '';
-      if (title) lcdTrack.textContent = title.toUpperCase();
-      // ジャケット
-      const pic = tags.picture;
-      if (pic) {
-        const mime = pic.format || 'image/jpeg';
-        const b64 = btoa(pic.data.reduce((s,c)=>s+String.fromCharCode(c),''));
-        showJacket('data:' + mime + ';base64,' + b64);
-      } else {
-        showJacket(null);
-      }
+      if (item) item.tags = tags; // キャッシュ
+      applyTags(tags);
     },
     onError: () => { showJacket(null); lcdArtist.textContent = ''; }
   });
+}
+
+function applyTags(tags) {
+  // アーティスト名
+  const artist = tags.artist || tags.TPE1 || tags.TPE2 || tags.band || '';
+  lcdArtist.textContent = artist.toUpperCase();
+  // 曲名
+  const title = tags.title || tags.TIT2 || '';
+  if (title) lcdTrack.textContent = title.toUpperCase();
+  // ジャケット
+  const pic = tags.picture;
+  if (pic) {
+    const mime = pic.format || 'image/jpeg';
+    const b64 = btoa(pic.data.reduce((s,c)=>s+String.fromCharCode(c),''));
+    showJacket('data:' + mime + ';base64,' + b64);
+  } else {
+    showJacket(null);
+  }
 }
 
 /* ---- Playlist UI ---- */
@@ -765,6 +784,9 @@ function renderPlaylist() {
     plList.appendChild(row);
   });
   updatePlBadge();
+  // プレイリスト更新のたびにprev/nextボタン状態を同期
+  prevBtn.disabled = (playlist.length < 2);
+  nextBtn.disabled = (playlist.length < 2);
 }
 
 /* playlist toggle */
@@ -804,7 +826,7 @@ function playIdx(idx) {
   };
   lcdTrack.textContent = item.name;
   statusTxt.textContent = 'PLAYING  ' + item.name;
-  if (item.file) readJacket(item.file); else showJacket(null);
+  readJacket(item);
   setPlaybackBtns('playing');
   resetClock(); startClock();
   renderPlaylist();
