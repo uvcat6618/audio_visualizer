@@ -295,60 +295,147 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
 /* ======== LANDSCAPE (iPhone横向き) ======== */
 @media (max-height: 500px) and (orientation: landscape) {
 
-  /* コントロールバーを1行に圧縮 */
+  /* appをfixedで完全固定、safe-areaを考慮 */
+  #app {
+    position: fixed;
+    top: 0;
+    left: env(safe-area-inset-left, 0);
+    right: env(safe-area-inset-right, 0);
+    bottom: 0;
+    height: 100% !important;
+    width: auto;
+  }
+
+  /* ビジュアライザ：残り全高さを使う */
+  #viz-area {
+    flex: 1;
+    min-height: 0;
+    height: 0; /* flex子要素がshrinkできるよう */
+  }
+
+  /* コントロールバー：固定高さ・1行・横スクロール */
   #ctrl-bar {
-    height: 52px !important;
+    flex-shrink: 0;
+    height: 48px !important;
+    min-height: 48px;
+    max-height: 48px;
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    padding: 0 10px env(safe-area-inset-right, 0) 10px;
-    gap: 6px;
+    padding: 0 8px;
+    gap: 5px;
     align-items: center;
     justify-content: flex-start;
+    scrollbar-width: none; /* スクロールバー非表示 */
   }
+  #ctrl-bar::-webkit-scrollbar { display: none; }
 
-  /* ビジュアライザが残りを全部使う */
-  #viz-area { min-height: 0; }
+  /* LCD */
+  #lcd-overlay { top:5px; left:8px; gap:1px; }
+  #lcd-brand   { display:none; }
+  #lcd-track   { font-size:8px; }
+  #lcd-time    { font-size:10px; }
 
-  /* LCD: 横向きは左上に小さく */
-  #lcd-overlay { top:6px; left:10px; gap:1px; }
-  #lcd-brand { display:none; }
-  #lcd-track { font-size:8px; }
-  #lcd-time  { font-size:11px; }
+  /* ジャケット */
+  #jacket-wrap { width:55px; height:55px; top:5px; right:8px; }
 
-  /* ジャケット: 横向きは小さめ右上 */
-  #jacket-wrap { width:60px; height:60px; top:6px; right:10px; }
+  /* 非表示 */
+  #top-right-overlay, #bar-brand, .screw, .bar-div, #status-wrap, #vu-col { display:none; }
 
-  /* 信号バー+LED: 非表示 */
-  #top-right-overlay { display:none; }
-
-  /* ボタン: コンパクト */
+  /* ボタン */
   .tbtn, #file-label {
-    padding: 5px 8px;
-    font-size: 7px;
-    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 6.5px;
+    min-height: 32px;
     white-space: nowrap;
     flex-shrink: 0;
+    border-bottom-width: 1px;
   }
 
-  /* 非表示要素 */
-  #bar-brand, .screw, .bar-div, #status-wrap { display:none; }
-
-  /* VU: 非表示にしてスペース確保 */
-  #vu-col { display:none; }
-
-  /* モードボタン: 折り返しなし */
-  #mode-group { flex-wrap:nowrap; }
-  .mdbtn { padding:4px 7px; font-size:7px; min-height:28px; flex-shrink:0; }
+  /* モードボタン */
+  #mode-group { flex-wrap: nowrap; flex-shrink: 0; }
+  .mdbtn { padding: 4px 6px; font-size: 6.5px; min-height: 32px; flex-shrink: 0; }
 
   /* ボリューム */
-  #vol-wrap { font-size:7px; flex-shrink:0; }
-  #vol-wrap input[type=range] { width:50px; }
+  #vol-wrap { font-size: 7px; flex-shrink: 0; }
+  #vol-wrap input[type=range] { width: 48px; }
 
   /* プレイリストパネル */
-  #playlist-panel { bottom:52px; }
-  #playlist-panel.open { max-height:60vh; }
+  #playlist-panel { bottom: 48px; }
+  #playlist-panel.open { max-height: 55vh; }
+}
+
+/* ======== PROGRESS BAR ======== */
+#progress-wrap {
+  flex-shrink: 0;
+  height: 18px;
+  background: #0a0a0a;
+  border-top: 1px solid #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+#progress-track {
+  flex: 1;
+  height: 3px;
+  background: #1a2a1a;
+  border-radius: 2px;
+  position: relative;
+  overflow: visible;
+}
+#progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #1a6a1a, #5dda5d);
+  border-radius: 2px;
+  transition: width 0.25s linear;
+  position: relative;
+}
+/* つまみ */
+#progress-fill::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5dda5d;
+  box-shadow: 0 0 4px rgba(93,218,93,0.6);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+#progress-wrap:hover #progress-fill::after { opacity: 1; }
+#progress-time-cur {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  color: #5dda5d;
+  letter-spacing: 0.1em;
+  min-width: 32px;
+  text-align: right;
+}
+#progress-time-total {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  color: #2a4a2a;
+  letter-spacing: 0.1em;
+  min-width: 32px;
+}
+
+@media (max-width: 600px) {
+  #progress-wrap { height: 20px; padding: 0 10px; gap: 6px; }
+  #progress-track { height: 3px; }
+  #progress-time-cur, #progress-time-total { font-size: 7px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #progress-wrap { height: 14px; padding: 0 8px; gap: 5px; }
+  #progress-time-cur, #progress-time-total { font-size: 6px; min-width: 26px; }
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
@@ -396,6 +483,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
       <span id="pl-count">0 TRACKS</span>
     </div>
     <div id="pl-list"></div>
+  </div>
+
+  <!-- PROGRESS BAR -->
+  <div id="progress-wrap">
+    <span id="progress-time-cur">0:00</span>
+    <div id="progress-track">
+      <div id="progress-fill"></div>
+    </div>
+    <span id="progress-time-total">0:00</span>
   </div>
 
   <!-- CONTROL BAR -->
@@ -481,6 +577,10 @@ const plList   = document.getElementById('pl-list');
 const plCount  = document.getElementById('pl-count');
 const plBadge  = document.getElementById('pl-badge');
 const vuLWrap  = document.getElementById('vu-l');
+const progressFill = document.getElementById('progress-fill');
+const progressCur  = document.getElementById('progress-time-cur');
+const progressTotal = document.getElementById('progress-time-total');
+let   progressDragging = false;
 const vuRWrap  = document.getElementById('vu-r');
 const sigBars  = Array.from(document.querySelectorAll('.sig-bar'));
 
@@ -678,6 +778,7 @@ function playIdx(idx) {
   source.connect(gainNode);
   source.loop = false;
   source.start(0);
+  source._startTime = audioCtx.currentTime;
   source.onended = () => {
     if (!isPaused && currentIdx === idx) {
       const next = idx + 1;
@@ -768,7 +869,7 @@ stopBtn.addEventListener('click', () => {
   ctx.clearRect(0, 0, W, H);
   statusTxt.textContent = 'STOPPED';
   lcdTrack.textContent = '--- STOPPED ---';
-  setPlaybackBtns('idle'); resetClock();
+  setPlaybackBtns('idle'); resetClock(); resetProgress();
   hideJacket();
   [vuSegsL, vuSegsR].flat().forEach(s => s.className = 'vu-seg');
   prevBtn.disabled = true; nextBtn.disabled = true;
@@ -1461,6 +1562,65 @@ function drawWMP(d) {
   for(let y=0;y<H;y+=2) ctx.fillRect(0,y,W,1);
 }
 
+
+/* ---- Progress bar ---- */
+function fmtTime(sec) {
+  const s = Math.floor(sec), m = Math.floor(s/60);
+  return m + ':' + String(s%60).padStart(2,'0');
+}
+
+function updateProgress() {
+  if (!source || !loadedBuffer || isPaused) return;
+  const current = (audioCtx.currentTime - (source._startTime || 0)) % loadedBuffer.duration;
+  const pct = Math.min(100, (current / loadedBuffer.duration) * 100);
+  progressFill.style.width = pct + '%';
+  progressFill.style.transition = 'width 0.25s linear';
+  progressCur.textContent = fmtTime(current);
+  progressTotal.textContent = fmtTime(loadedBuffer.duration);
+}
+
+function resetProgress() {
+  progressFill.style.transition = 'none';
+  progressFill.style.width = '0%';
+  progressCur.textContent = '0:00';
+  progressTotal.textContent = '0:00';
+}
+
+/* seek on click/tap */
+document.getElementById('progress-wrap').addEventListener('pointerdown', e => {
+  if (!loadedBuffer) return;
+  e.preventDefault();
+  progressDragging = true;
+  seek(e);
+});
+document.addEventListener('pointermove', e => { if (progressDragging) seek(e); });
+document.addEventListener('pointerup',   () => { progressDragging = false; });
+
+function seek(e) {
+  const track = document.getElementById('progress-track');
+  const rect = track.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const seekTo = pct * loadedBuffer.duration;
+  // Restart source from seek position
+  if (source) { try { source.stop(); source.disconnect(); } catch(err) {} }
+  source = audioCtx.createBufferSource();
+  source.buffer = loadedBuffer;
+  source.connect(gainNode);
+  source.loop = false;
+  source.start(0, seekTo);
+  source._startTime = audioCtx.currentTime - seekTo;
+  source.onended = () => {
+    if (!isPaused && currentIdx >= 0) {
+      const next = currentIdx + 1;
+      if (next < playlist.length) playIdx(next);
+      else { setPlaybackBtns('idle'); resetClock(); resetProgress(); statusTxt.textContent = 'PLAYLIST ENDED'; lcdTrack.textContent = '--- END ---'; currentIdx = -1; renderPlaylist(); }
+    }
+  };
+  progressFill.style.transition = 'none';
+  progressFill.style.width = (pct*100) + '%';
+  progressCur.textContent = fmtTime(seekTo);
+}
+
 /* ---- MAIN LOOP ---- */
 function loop() {
   animId = requestAnimationFrame(loop);
@@ -1477,6 +1637,7 @@ function loop() {
   else if(mode==='wmp')drawWMP(dataArray);
   updateVU(dataArray);
   animateSig(avg);
+  updateProgress();
 }
 loop();
 
