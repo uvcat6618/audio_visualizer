@@ -291,6 +291,65 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
   .tbtn, #file-label { padding:7px 7px; font-size:6.5px; }
   #prev-btn, #next-btn { letter-spacing:0; }
 }
+
+/* ======== LANDSCAPE (iPhone横向き) ======== */
+@media (max-height: 500px) and (orientation: landscape) {
+
+  /* コントロールバーを1行に圧縮 */
+  #ctrl-bar {
+    height: 52px !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 10px env(safe-area-inset-right, 0) 10px;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  /* ビジュアライザが残りを全部使う */
+  #viz-area { min-height: 0; }
+
+  /* LCD: 横向きは左上に小さく */
+  #lcd-overlay { top:6px; left:10px; gap:1px; }
+  #lcd-brand { display:none; }
+  #lcd-track { font-size:8px; }
+  #lcd-time  { font-size:11px; }
+
+  /* ジャケット: 横向きは小さめ右上 */
+  #jacket-wrap { width:60px; height:60px; top:6px; right:10px; }
+
+  /* 信号バー+LED: 非表示 */
+  #top-right-overlay { display:none; }
+
+  /* ボタン: コンパクト */
+  .tbtn, #file-label {
+    padding: 5px 8px;
+    font-size: 7px;
+    min-height: 28px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* 非表示要素 */
+  #bar-brand, .screw, .bar-div, #status-wrap { display:none; }
+
+  /* VU: 非表示にしてスペース確保 */
+  #vu-col { display:none; }
+
+  /* モードボタン: 折り返しなし */
+  #mode-group { flex-wrap:nowrap; }
+  .mdbtn { padding:4px 7px; font-size:7px; min-height:28px; flex-shrink:0; }
+
+  /* ボリューム */
+  #vol-wrap { font-size:7px; flex-shrink:0; }
+  #vol-wrap input[type=range] { width:50px; }
+
+  /* プレイリストパネル */
+  #playlist-panel { bottom:52px; }
+  #playlist-panel.open { max-height:60vh; }
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
