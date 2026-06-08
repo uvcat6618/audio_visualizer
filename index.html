@@ -47,13 +47,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
   font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;
   letter-spacing:0.3em;color:rgba(255,255,255,0.5);text-transform:uppercase;
 }
-#lcd-track{
-  font-size:11px;color:#5dda5d;letter-spacing:0.1em;
-  max-width:50vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+#lcd-artist{
+  font-size:10px;color:rgba(93,218,93,0.7);letter-spacing:0.12em;
+  max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-#lcd-time{
-  font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;
-  color:#5dda5d;letter-spacing:0.15em;
+#lcd-track{
+  font-size:13px;color:#5dda5d;letter-spacing:0.1em;font-weight:700;
+  max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 
 /* signal + LED top-right */
@@ -96,6 +96,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
   align-items:center;
   gap:12px;
   overflow:hidden;
+  position:relative;
+  z-index:20;
 }
 
 /* brushed metal accent line */
@@ -176,12 +178,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
 
 /* playlist panel (slides up from bottom) */
 #playlist-panel{
-  position:absolute;bottom:80px;left:0;right:0;
+  position:absolute;
+  /* progress(18px) + ctrl-bar(80px) = 98px */
+  bottom:98px;
+  left:0;right:0;
   background:rgba(8,14,8,0.97);
   border-top:1px solid #1a2a1a;
   max-height:0;overflow:hidden;
   transition:max-height 0.25s ease;
-  z-index:10;
+  z-index:5; /* ctrl-barより下に */
 }
 #playlist-panel.open{max-height:220px}
 #pl-header{
@@ -236,9 +241,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
 
   /* LCD overlay */
   #lcd-overlay { top:8px; left:10px; gap:2px; }
-  #lcd-brand { font-size:8px; letter-spacing:0.1em; }
-  #lcd-track { font-size:9px; }
-  #lcd-time  { font-size:13px; }
+  #lcd-brand  { font-size:8px; letter-spacing:0.1em; }
+  #lcd-artist { font-size:8px; }
+  #lcd-track  { font-size:11px; }
 
   /* Jacket */
   #jacket-wrap { width:72px; height:72px; top:44px; right:10px; }
@@ -281,8 +286,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
   #vol-wrap input[type=range] { width:60px; }
 
   /* Playlist */
-  #playlist-panel { bottom:0; }
-  #playlist-panel.open { max-height:45vh; }
+  #playlist-panel { bottom:0; z-index:5; }
+  #playlist-panel.open { max-height:40vh; }
   .pl-item { padding:9px 12px; font-size:10px; min-height:36px; }
   #pl-badge { width:16px; height:16px; font-size:8px; }
 }
@@ -334,8 +339,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
   /* LCD */
   #lcd-overlay { top:5px; left:8px; gap:1px; }
   #lcd-brand   { display:none; }
-  #lcd-track   { font-size:8px; }
-  #lcd-time    { font-size:10px; }
+  #lcd-artist  { font-size:7px; }
+  #lcd-track   { font-size:9px; }
 
   /* ジャケット */
   #jacket-wrap { width:55px; height:55px; top:5px; right:8px; }
@@ -362,14 +367,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
   #vol-wrap input[type=range] { width: 48px; }
 
   /* プレイリストパネル */
-  #playlist-panel { bottom: 48px; }
-  #playlist-panel.open { max-height: 55vh; }
+  #playlist-panel { bottom: 62px; z-index:5; }
+  #playlist-panel.open { max-height: 50vh; }
 }
 
 /* ======== PROGRESS BAR ======== */
 #progress-wrap {
   flex-shrink: 0;
   height: 18px;
+  position: relative;
+  z-index: 20;
   background: #0a0a0a;
   border-top: 1px solid #1a1a1a;
   display: flex;
@@ -450,8 +457,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
     <!-- LCD overlay -->
     <div id="lcd-overlay">
       <div id="lcd-brand">AUDIO VISUALIZER</div>
+      <div id="lcd-artist"></div>
       <div id="lcd-track">--- NO SIGNAL ---</div>
-      <div id="lcd-time">00:00</div>
     </div>
 
     <!-- top-right overlay -->
@@ -561,8 +568,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Sh
 <script>
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
-const lcdTrack = document.getElementById('lcd-track');
-const lcdTime  = document.getElementById('lcd-time');
+const lcdTrack  = document.getElementById('lcd-track');
+const lcdArtist = document.getElementById('lcd-artist');
+const lcdTime   = { textContent: '' }; // clock kept for progress bar timing
 const statusTxt = document.getElementById('status-txt');
 const demoBtn  = document.getElementById('demo-btn');
 const playBtn  = document.getElementById('play-btn');
@@ -704,7 +712,15 @@ function readJacket(file) {
   if (typeof jsmediatags === 'undefined') { showJacket(null); return; }
   jsmediatags.read(file, {
     onSuccess: (tag) => {
-      const pic = tag.tags && tag.tags.picture;
+      const tags = tag.tags || {};
+      // アーティスト名
+      const artist = tags.artist || tags.TPE1 || tags.TPE2 || '';
+      lcdArtist.textContent = artist.toUpperCase();
+      // 曲名（タグ優先、なければファイル名）
+      const title = tags.title || tags.TIT2 || '';
+      if (title) lcdTrack.textContent = title.toUpperCase();
+      // ジャケット
+      const pic = tags.picture;
       if (pic) {
         const mime = pic.format || 'image/jpeg';
         const b64 = btoa(pic.data.reduce((s,c)=>s+String.fromCharCode(c),''));
@@ -713,7 +729,7 @@ function readJacket(file) {
         showJacket(null);
       }
     },
-    onError: () => showJacket(null)
+    onError: () => { showJacket(null); lcdArtist.textContent = ''; }
   });
 }
 
@@ -739,7 +755,7 @@ function renderPlaylist() {
       if (e.target.classList.contains('pl-del')) {
         const di = parseInt(e.target.dataset.idx);
         playlist.splice(di, 1);
-        if (currentIdx === di) { stopTrack(); currentIdx = -1; lcdTrack.textContent = '--- STOPPED ---'; setPlaybackBtns('idle'); resetClock(); }
+        if (currentIdx === di) { stopTrack(); currentIdx = -1; lcdTrack.textContent = '--- STOPPED ---'; lcdArtist.textContent = ''; setPlaybackBtns('idle'); resetClock(); }
         else if (currentIdx > di) currentIdx--;
         renderPlaylist(); updatePlBadge();
         return;
@@ -783,7 +799,7 @@ function playIdx(idx) {
     if (!isPaused && currentIdx === idx) {
       const next = idx + 1;
       if (next < playlist.length) playIdx(next);
-      else { setPlaybackBtns('idle'); resetClock(); statusTxt.textContent = 'PLAYLIST ENDED'; lcdTrack.textContent = '--- END ---'; currentIdx = -1; renderPlaylist(); }
+      else { setPlaybackBtns('idle'); resetClock(); statusTxt.textContent = 'PLAYLIST ENDED'; lcdTrack.textContent = '--- END ---'; lcdArtist.textContent = ''; currentIdx = -1; renderPlaylist(); }
     }
   };
   lcdTrack.textContent = item.name;
@@ -905,7 +921,7 @@ function makeDemoSound() {
   });
   demoPlaying = true;
   demoBtn.classList.add('lit');
-  lcdTrack.textContent = 'DEMO SYNTHESIZER';
+  lcdTrack.textContent = 'DEMO SYNTHESIZER'; lcdArtist.textContent = 'SYNTHESIZER';
   statusTxt.textContent = 'DEMO MODE  AUTO SWEEP ACTIVE';
   hideJacket();
   currentIdx = -1; setPlaybackBtns('idle');
@@ -940,7 +956,7 @@ demoBtn.addEventListener('click', () => {
     cancelAnimationFrame(animId); animId = null;
     ctx.clearRect(0,0,W,H);
     statusTxt.textContent = 'STANDBY';
-    lcdTrack.textContent = '--- NO SIGNAL ---';
+    lcdTrack.textContent = '--- NO SIGNAL ---'; lcdArtist.textContent = '';
     resetClock();
     [vuSegsL,vuSegsR].flat().forEach(s=>s.className='vu-seg');
   } else {
