@@ -996,9 +996,15 @@ function animateSig(vol) {
 
 /* ---- VU ---- */
 function updateVU(d) {
-  const half = Math.floor(bufLen/2);
-  const lv = d.slice(0,half).reduce((a,b)=>a+b,0)/half/255;
-  const rv = d.slice(half).reduce((a,b)=>a+b,0)/half/255;
+  // AnalyserNodeはモノラル周波数データのみのため
+  // 波形(TimeDomain)の前半/後半サンプルでL/Rを擬似表現
+  analyser.getByteTimeDomainData(waveArray);
+  const half = Math.floor(waveArray.length / 2);
+  let lSum = 0, rSum = 0;
+  for (let i = 0;    i < half;              i++) lSum += Math.abs(waveArray[i] - 128);
+  for (let i = half; i < waveArray.length;  i++) rSum += Math.abs(waveArray[i] - 128);
+  const lv = lSum / half / 128;
+  const rv = rSum / half / 128;
   [vuSegsL, vuSegsR].forEach((segs, ch) => {
     const vol = ch === 0 ? lv : rv;
     const lit = Math.round(vol * VU_N * 2.5);
